@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh">
+  <head>
+    <meta charset="UTF-8">
+    <title>firgamest</title>
+    <style>
+      body {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background: #e0f7fa;
+        margin: 0;
+        font-family: sans-serif;
+      }
+      canvas {
+        background: #a7d28d;
+        border: 2px solid #333;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div style="display: flex; flex-direction: column; align-items: center;">
+      
+      <canvas id="farm" width="600" height="400" style="display: none;"></canvas>
+    </div>
+    <div id="plot-container" style="padding: 12px; border: 1px solid #000; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr;"></div>  
+    <button id="btn-wheat" type="button" onclick="handleButtonClick()">wheat</button>
+
+    <script>
+      const canvas = document.getElementById("farm");
+      const ctx = canvas.getContext("2d");
+
+
+      const rows = 1;
+      const cols = 1;
+      const cellSize = 70;
+
+
+      // 每块地的数据：{ stage: 0 }，stage 表示植物生长阶段
+      const field = Array.from({ length: rows }, () =>
+        Array.from({ length: cols }, () => ({ stage: 0, planted: false, growTime: 0 }))
+      );
+
+
+      // 绘制农场
+      function drawFarm() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            const x = c * cellSize;
+            const y = r * cellSize;
+
+
+            // 土地格子
+            ctx.fillStyle = "#c2a679";
+            ctx.fillRect(x + 2, y + 2, cellSize - 4, cellSize - 4);
+
+
+            const cell = field[r][c];
+            if (cell.planted) {
+              drawPlant(x, y, cell.stage);
+            }
+          }
+        }
+      }
+
+
+      // 绘制植物，不同阶段不同形状
+      function drawPlant(x, y, stage) {
+        ctx.save();
+        ctx.translate(x + cellSize / 2, y + cellSize / 2);
+
+
+        if (stage === 1) {
+          ctx.fillStyle = "green";
+          ctx.beginPath();
+          ctx.arc(0, 0, 8, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (stage === 2) {
+          ctx.fillStyle = "limegreen";
+          ctx.beginPath();
+          ctx.arc(0, 0, 15, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (stage === 3) {
+          ctx.fillStyle = "orange";
+          ctx.beginPath();
+          ctx.arc(0, 0, 20, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+
+      // 点击种植
+      canvas.addEventListener("click", (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+
+        const c = Math.floor(x / cellSize);
+        const r = Math.floor(y / cellSize);
+
+
+        const cell = field[r][c];
+        if (!cell.planted) {
+          cell.planted = true;
+          cell.stage = 1;
+          cell.growTime = Date.now();
+        }
+      });
+
+
+      // 更新植物生长
+      function update() {
+        const now = Date.now();
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            const cell = field[r][c];
+            if (cell.planted) {
+              const elapsed = (now - cell.growTime) / 1000; // 秒
+              if (elapsed > 3 && cell.stage < 2) cell.stage = 2;
+              if (elapsed > 6 && cell.stage < 3) cell.stage = 3;
+            }
+          }
+        }
+      }
+
+
+      // 主循环
+      function gameLoop() {
+        updatePlantsGrowth();
+        update();
+        drawFarm();
+        requestAnimationFrame(gameLoop);
+      }
+      
+      function handleButtonClick() {
+        
+      }
+
+      let isMouseMoving = false;
+      const button = document.getElementById("btn-wheat");
+      button.addEventListener("mousedown", (event) => {
+        console.log("Button mousedown event:", event);
+        isMouseMoving = true;
+      })
+      const plotCounter = 4;
+      const plotContainer = document.getElementById("plot-container");
+      for (let i = 0; i < plotCounter; i++) {
+        const plot = document.createElement("div");
+        plot.id = `plot-${i}`;
+        plot.style.width = "50px";
+        plot.style.height = "50px";
+        //plot.style.borderRadius = "50%";
+        plot.style.border = "1px solid black";
+        plot.style.display = "flex";
+        plot.style.justifyContent = "center";
+        plot.style.alignItems = "center";
+        plot.style.margin = "2px";
+        plot.style.backgroundColor = "#c2a679"; // 土地颜色
+        
+        const plant = document.createElement("div");
+        plant.id = `plant-${i}`;
+        plant.style.display = "none";
+        plant.style.width = "10px";
+        plant.style.height = "10px";
+        plant.style.borderRadius = "50%";
+        plant.style.backgroundColor = "green"; // 植物颜色
+        plot.appendChild(plant);
+        plotContainer.appendChild(plot);
+
+        plot.addEventListener("mousedown", (event) => {
+          if (isMouseMoving) {
+            isMouseMoving = false; // 防止多次触发
+            console.log("Plot mousemove event:", event);
+            // plot.style.backgroundColor = "#000000"; // 种植后颜色
+            plot.querySelector('#plant-' + i).style.display = "block"; // 显示植物
+          }
+        });
+
+        plot.addEventListener("mouseup", (event) => {
+          console.log("Plot mouseup event:", event);
+          isMouseMoving = false;
+        });
+      }
+
+      function updatePlantsGrowth() {
+        for (let i = 0; i < plotCounter; i++) {
+          const plant = document.getElementById(`plant-${i}`);
+          if (plant.style.display === "block") {
+            let currentSize = parseInt(plant.style.width);
+            if (currentSize < 30) { // 最大尺寸
+              currentSize += 1; // 增长速度
+              plant.style.width = currentSize + "px";
+              plant.style.height = currentSize + "px";
+            }
+          }
+        }
+      }
+
+      gameLoop();
+    </script>
+  </body>
